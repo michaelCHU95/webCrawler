@@ -3,6 +3,7 @@ package crawler
 import (
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -34,7 +35,14 @@ func getLinks(node *html.Node, links []string) []string {
 	if node.Type == html.ElementNode && node.Data == "a" {
 		for _, attr := range node.Attr {
 			if attr.Key == "href" {
-				links = append(links, attr.Val)
+				valid, err := validateURLDomain(attr.Val)
+				if err != nil {
+					// TODO: Add warning log
+					continue
+				}
+				if valid {
+					links = append(links, attr.Val)
+				}
 			}
 		}
 	}
@@ -55,4 +63,18 @@ func ParseHTMLToGetLinks(b string) (links []string, err error) {
 
 	links = getLinks(node, []string{})
 	return links, nil
+}
+
+// validateURLDomain to check if url has similar host
+func validateURLDomain(link string) (bool, error) {
+	u, err := url.Parse(link)
+	if err != nil {
+		return false, err
+	}
+
+	// if url is relative rather than absolute --> same domain
+	if len(u.Host) == 0 {
+		return true, nil
+	}
+	return false, nil
 }
