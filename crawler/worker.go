@@ -1,8 +1,13 @@
 package crawler
 
+import (
+	"net/url"
+)
+
 type Worker struct {
 	Visited map[string]struct{}
 	Result  urlResults
+	root    *url.URL
 
 	// http util methods
 	GetUrlResponse      GetUrlResponseFunc
@@ -15,16 +20,22 @@ func (u *urlResults) append(val string) {
 	*u = append(*u, val)
 }
 
-func InitWorker() *Worker {
+func InitWorker(rootURL string) (*Worker, error) {
 	w := new(Worker)
 	w.Visited = map[string]struct{}{}
 	w.GetUrlResponse = GetUrlResponse
 	w.ParseHTMLToGetLinks = ParseHTMLToGetLinks
-	return w
+
+	u, err := url.Parse(rootURL)
+	if err != nil {
+		return nil, err
+	}
+	w.root = u
+	return w, nil
 }
 
-func (w *Worker) Start(root string, output chan []string) {
-	w.fetchLinks(root)
+func (w *Worker) Start(output chan []string) {
+	w.fetchLinks(w.root.String())
 	output <- w.Result
 }
 
@@ -40,15 +51,25 @@ func (w *Worker) fetchLinks(url string) {
 		return
 	}
 	if status >= 400 {
+		// TODO: add warning logs
 		return
 	}
 
 	links, err := w.ParseHTMLToGetLinks(res)
 	if err != nil {
+		// TODO: add warning logs
 		return
 	}
 
 	for _, link := range links {
+		link = w.convertRelativeUrlToAbsolute(link)
 		w.fetchLinks(link)
 	}
+}
+
+// Convert relative url to absolute link
+func (w *Worker) convertRelativeUrlToAbsolute(url string) string {
+	urlObj := *w.root
+	urlObj.Path = url
+	return urlObj.String()
 }

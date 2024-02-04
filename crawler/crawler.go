@@ -32,8 +32,9 @@ func (impl *Crawler) Run() {
 	for _, s := range impl.Sites {
 		wg.Add(1)
 		go func(rootURL string) {
-			worker := InitWorker()
-			worker.Start(rootURL, results)
+			// TODO: Add error handling
+			worker, _ := InitWorker(rootURL)
+			worker.Start(results)
 			wg.Done()
 		}(s)
 	}
