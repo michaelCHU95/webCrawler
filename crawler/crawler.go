@@ -25,26 +25,25 @@ func (impl *Crawler) Run() {
 		return
 	}
 
-	// Write worker result concurrently
-	results := make(chan []string)
-	defer close(results)
-	go func() {
-		for r := range results {
-			for _, url := range r {
-				fmt.Fprintln(impl.Out, url)
-			}
-		}
-	}()
+	wg := new(sync.WaitGroup)
+	results := make(chan []string, len(impl.Sites))
 
 	// Crawling process
-	wg := new(sync.WaitGroup)
 	for _, s := range impl.Sites {
 		wg.Add(1)
 		go func(rootURL string) {
-			defer wg.Done()
 			worker := InitWorker()
 			worker.Start(rootURL, results)
+			wg.Done()
 		}(s)
 	}
 	wg.Wait()
+	close(results)
+
+	// Write results
+	for r := range results {
+		for _, url := range r {
+			fmt.Fprintln(impl.Out, url)
+		}
+	}
 }
