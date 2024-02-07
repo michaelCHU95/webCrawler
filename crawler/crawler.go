@@ -38,8 +38,12 @@ func (impl *Crawler) Run() {
 			wg.Done()
 		}(s)
 	}
-	wg.Wait()
-	close(results)
+
+	// Close the channel when goroutines are done
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
 
 	// Write results
 	for r := range results {
